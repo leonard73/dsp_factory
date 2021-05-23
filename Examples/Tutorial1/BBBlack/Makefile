@@ -3,6 +3,7 @@ cc:=gcc -mfpu=neon-vfpv4 -mfloat-abi=hard
 srcs:=${DEMO_PATH}/Codes/NeonLoadStore.c
 exe:=dspFactoryT1_NeonLDTest
 all:
+		@echo $(srcs)
         $(cc)  $(srcs) -o $(exe)
 run:
         ./$(exe)
