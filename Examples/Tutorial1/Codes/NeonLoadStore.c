@@ -3,9 +3,16 @@
 #include <sys/time.h> 
 #include <stdlib.h>
 #include <arm_neon.h>
+#ifdef PLATFORM_ANDROID_ARM64
+#define TEST_DATA_PATH "/data/local/tmp/tutorial1_data.jpg"
+#define TEST_OUT_ARM_DATA_PATH "/data/local/tmp/tutorial1_data_outArm.jpg"
+#define TEST_OUT_NEON_DATA_PATH "/data/local/tmp/tutorial1_data_outNEON.jpg"
+#elif defined (PLATFORM_LINUX_ARM64)
 #define TEST_DATA_PATH "tutorial1_data.jpg"
 #define TEST_OUT_ARM_DATA_PATH "tutorial1_data_outArm.jpg"
 #define TEST_OUT_NEON_DATA_PATH "tutorial1_data_outNEON.jpg"
+#endif
+
 #define TEST_DATA_LENGTH_BYTES (116536)
 struct timeval tpstart,tpend;
 long timeuse_us; 
@@ -53,9 +60,11 @@ void Neon_Load_Store_NO_Operation(uint8_t * src, uint8_t *dst, unsigned int size
 #undef SIMD_LENGTH_BYTES_THIS_FUNCTION
 #undef SIMD_LENGTH_BYTES_THIS_FUNCTION_LOG2
 }
-#define TEST_TIMES_REPLICATE 10240
+#define TEST_TIMES_REPLICATE 1024
+void logMenu();
 int main()
 {
+    logMenu();
     uint8_t * load_buf = (uint8_t*) malloc(TEST_DATA_LENGTH_BYTES);
     uint8_t * store_buf_neon = (uint8_t*) malloc(TEST_DATA_LENGTH_BYTES);
     uint8_t * store_buf_arm = (uint8_t*) malloc(TEST_DATA_LENGTH_BYTES);
@@ -75,10 +84,24 @@ int main()
     gettimeofday(&tpend,NULL); 
     store_test_data(store_buf_arm,TEST_OUT_ARM_DATA_PATH,TEST_DATA_LENGTH_BYTES);
     timeuse_us=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
-    printf("ARM MEMCPY TOTAL_TIME=%ld us; MOVE SIZE = %d times * %d bytes\n",timeuse_us,TEST_TIMES_REPLICATE,TEST_DATA_LENGTH_BYTES);
+    printf("ARM MEMCPY  TOTAL_TIME=%ld us; MOVE SIZE = %d times * %d bytes\n",timeuse_us,TEST_TIMES_REPLICATE,TEST_DATA_LENGTH_BYTES);
     //Free Dynamic LOAD Memory
     free(load_buf);
     free(store_buf_arm);
     free(store_buf_neon);
+    printf("############################################################################\n");
+    printf("############################################################################\n");  
     return 0;
+}
+void logMenu()
+{
+    printf("############################################################################\n");
+    printf("############################################################################\n");
+    printf("##############         This is DSPFACTORY T1 TEST          #################\n");
+    printf("##############         INPUT:  A NORMAL JPEG FILE          #################\n");
+    printf("##############         OUTPUT: THE SAME JPEG FILE          #################\n");
+    printf("##############         AIM: LOAD & STOREMEM INTO V-DataReg #################\n");
+    printf("##############         This is DSPFACTORY T1 TEST          #################\n");
+    printf("############################################################################\n");
+    printf("############################################################################\n");   
 }
