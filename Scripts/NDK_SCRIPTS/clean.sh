@@ -1,0 +1,1 @@
+${NDK_ROOT_PATH}/ndk-build clean
