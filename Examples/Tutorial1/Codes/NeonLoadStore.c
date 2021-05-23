@@ -3,9 +3,9 @@
 #include <sys/time.h> 
 #include <stdlib.h>
 #include <arm_neon.h>
-#define TEST_DATA_PATH "/data/local/tmp/tutorial1_data.jpg"
-#define TEST_OUT_ARM_DATA_PATH "/data/local/tmp/tutorial1_data_outArm.jpg"
-#define TEST_OUT_NEON_DATA_PATH "/data/local/tmp/tutorial1_data_outNEON.jpg"
+#define TEST_DATA_PATH "tutorial1_data.jpg"
+#define TEST_OUT_ARM_DATA_PATH "tutorial1_data_outArm.jpg"
+#define TEST_OUT_NEON_DATA_PATH "tutorial1_data_outNEON.jpg"
 #define TEST_DATA_LENGTH_BYTES (116536)
 struct timeval tpstart,tpend;
 long timeuse_us; 
