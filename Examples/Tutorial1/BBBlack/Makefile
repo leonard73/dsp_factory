@@ -1,5 +1,5 @@
 DEMO_PATH:=${DSP_FACTORY_ROOT_PATH}/Examples/Tutorial1
-cc:=gcc  -std=c99 -mfpu=neon-vfpv4 -mfloat-abi=hard
+cc:=gcc  -std=c99 -mfpu=neon-vfpv4 -mfloat-abi=hard -DPLATFORM_LINUX_ARM64
 srcs:=${DEMO_PATH}/Codes/NeonLoadStore.c
 exe:=dspFactoryT1_NeonLDTest
 TEST_DATA:=${DEMO_PATH}/DATA/tutorial1_data.jpg
