@@ -43,5 +43,8 @@ int main(int argc,char * argv[])
         ret=gpio_state(GPIO_OFF,GPIO_OFF,GPIO_OFF);
         sleep(1);
     }
+    ret=gpio_unexport(pinx);
+    ret=gpio_unexport(piny);
+    ret=gpio_unexport(pinz);
     return 0;
 }
