@@ -21,12 +21,12 @@ int main(int argc,char * argv[])
     int pinx = (int)GPIO_PINX;
     int piny = (int)GPIO_PINY;
     int pinz = (int)GPIO_PINZ;
-    ret=gpio_unexport(pinx);
-    ret=gpio_unexport(piny);
-    ret=gpio_unexport(pinz);
-    ret=gpio_export(pinx);
-    ret=gpio_export(piny);
-    ret=gpio_export(pinz);
+    // ret=gpio_unexport(pinx);
+    // ret=gpio_unexport(piny);
+    // ret=gpio_unexport(pinz);
+    // ret=gpio_export(pinx);
+    // ret=gpio_export(piny);
+    // ret=gpio_export(pinz);
     while(1)
     {
         ret=gpio_state(GPIO_ON,GPIO_OFF,GPIO_OFF);
@@ -46,8 +46,8 @@ int main(int argc,char * argv[])
         ret=gpio_state(GPIO_OFF,GPIO_OFF,GPIO_OFF);
         sleep(1);
     }
-    ret=gpio_unexport(pinx);
-    ret=gpio_unexport(piny);
-    ret=gpio_unexport(pinz);
+    // ret=gpio_unexport(pinx);
+    // ret=gpio_unexport(piny);
+    // ret=gpio_unexport(pinz);
     return 0;
 }
