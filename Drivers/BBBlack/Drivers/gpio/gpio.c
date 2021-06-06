@@ -4,7 +4,7 @@ int gpio_export(int pin)
     char buffer[64];  
     int len;  
     int fd;  
-  
+    system("chmod 777 -R sys/class/gpio");
     fd = open("/sys/class/gpio/export", O_WRONLY);  
     if (fd < 0) 
     {  
