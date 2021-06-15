@@ -47,9 +47,22 @@ void cvt_RGB888_BGR888(unsigned char * p_dataRGB888,unsigned int pixelNB)
         *(p_dataRGB888+i+2) = temp; 
     }
 }
+void REVERSE_RGB888(unsigned char * p_dataRGB888,unsigned int width,unsigned int height)
+{
+    unsigned char temp;
+    for(int i=0;i<height/2;i++)
+    {
+        for(int j=0;j<width*3;j++){
+        temp=*(p_dataRGB888+i*width*3+j);
+        *(p_dataRGB888+i*width*3+j)=*(p_dataRGB888+(height-i-1)*width*3+j);
+        *(p_dataRGB888+(height-i-1)*width*3+j)=temp;
+        }
+    }
+}
 unsigned char * create_bmpFile_rgb888(unsigned char * p_dataRGB888,unsigned int size,unsigned int width,unsigned int height)
 {
     bmpFile_memPtr=(unsigned char*) malloc(size+BITMAP_HEADER_LENGTH);
+    REVERSE_RGB888( p_dataRGB888,width,height);//for bmp stores reverse observe coordinate axis
     cvt_RGB888_BGR888( p_dataRGB888,width*height);
     create_bmp_file(bmpFile_memPtr,p_dataRGB888,24,size,width,height);
     return bmpFile_memPtr;
@@ -128,6 +141,7 @@ void readBMPInfo(char * loadPath)
     printf("RawData compression     :   %d \n",bmpInfoHeader.bmpInfo_compression);
     printf("RawData bmpInfo_planes  :   %d \n",bmpInfoHeader.bmpInfo_planes);
     cvt_RGB888_BGR888(rgb,width*height);
+    REVERSE_RGB888( rgb,width,height);
     free_bmpRes();
 }
 //************************test************************************//
