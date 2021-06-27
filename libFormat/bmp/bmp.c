@@ -2,6 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#if defined(WIN32) || defined(WIN64)
+#include <windows.h>
+#define sleep(n) Sleep(1000 * (n))
+#else
+#include <unistd.h>
+#endif
 static unsigned char * bmpFile_memPtr;
 static unsigned char * rawDataPtr;
 void create_bmp_file(   
@@ -59,6 +65,18 @@ void REVERSE_RGB888(unsigned char * p_dataRGB888,unsigned int width,unsigned int
         }
     }
 }
+void REVERSE_Gray8(unsigned char * p_dataGray8,unsigned int width,unsigned int height)
+{
+    unsigned char temp;
+    for(int i=0;i<height/2;i++)
+    {
+        for(int j=0;j<width;j++){
+        temp=*(p_dataGray8+i*width+j);
+        *(p_dataGray8+i*width+j)=*(p_dataGray8+(height-i-1)*width+j);
+        *(p_dataGray8+(height-i-1)*width+j)=temp;
+        }
+    }
+}
 unsigned char * create_bmpFile_rgb888(unsigned char * p_dataRGB888,unsigned int size,unsigned int width,unsigned int height)
 {
     bmpFile_memPtr=(unsigned char*) malloc(size+BITMAP_HEADER_LENGTH);
@@ -67,8 +85,16 @@ unsigned char * create_bmpFile_rgb888(unsigned char * p_dataRGB888,unsigned int 
     create_bmp_file(bmpFile_memPtr,p_dataRGB888,24,size,width,height);
     return bmpFile_memPtr;
 }
+unsigned char * create_bmpFile_Gray8(unsigned char * p_dataGray8,unsigned int size,unsigned int width,unsigned int height)
+{
+    bmpFile_memPtr=(unsigned char*) malloc(size+BITMAP_HEADER_LENGTH);
+    REVERSE_Gray8( p_dataGray8,width,height);//for bmp stores reverse observe coordinate axis
+    create_bmp_file(bmpFile_memPtr,p_dataGray8,8,size,width,height);
+    return bmpFile_memPtr;
+}
 void free_bmpRes()
 {
+    usleep(10);
     if(bmpFile_memPtr)
         free(bmpFile_memPtr);
     if(rawDataPtr)
@@ -80,7 +106,13 @@ void save_RawRGB_bmpFile(char * savePath,unsigned char * p_dataRGB888,unsigned i
     FILE * fp = fopen(savePath,"wb");
     fwrite(saveBuf,size+BITMAP_HEADER_LENGTH,sizeof(unsigned char),fp);
     fclose(fp);
-    free_bmpRes();
+}
+void save_RawGray8_bmpFile(char * savePath,unsigned char * p_dataGray8,unsigned int size,unsigned int width,unsigned int height)
+{
+    unsigned char * saveBuf = create_bmpFile_Gray8(p_dataGray8,size,width,height);
+    FILE * fp = fopen(savePath,"wb");
+    fwrite(saveBuf,size+BITMAP_HEADER_LENGTH,sizeof(unsigned char),fp);
+    fclose(fp);
 }
 void loadFile(char * loadPath,unsigned int size,unsigned char * buf)
 {
@@ -128,39 +160,17 @@ unsigned char* read_bmpFile_RawRGB(
     loadBmpDataPart(loadPath,bmpInfoHeader->bmpInfo_image_size,rawDataPtr);
     return rawDataPtr;
 }
-void readBMPInfo(char * loadPath)
+void readBMP(char * loadPath,bitmap_file_header *bmpFileHeader,bitmap_info_header *bmpInfoHeader,unsigned char *raw)
 {
-    bitmap_file_header bmpFileHeader;
-    bitmap_info_header bmpInfoHeader;
     unsigned int bitsPerPixel,size,width,height;
-    unsigned char * rgb=read_bmpFile_RawRGB(loadPath,&bitsPerPixel,&size,&width,&height,&bmpFileHeader,&bmpInfoHeader);
+    unsigned char * rgb=read_bmpFile_RawRGB(loadPath,&bitsPerPixel,&size,&width,&height,bmpFileHeader,bmpInfoHeader);
     printf("RawData Size            :   %d Bytes\n",size);
     printf("RawData bitsPerPixel    :   %d bits/Pixel\n",bitsPerPixel);
     printf("RawData width           :   %d pixels\n",width);
     printf("RawData height          :   %d pixels\n",height);
-    printf("RawData compression     :   %d \n",bmpInfoHeader.bmpInfo_compression);
-    printf("RawData bmpInfo_planes  :   %d \n",bmpInfoHeader.bmpInfo_planes);
+    printf("RawData compression     :   %d \n",bmpInfoHeader->bmpInfo_compression);
+    printf("RawData bmpInfo_planes  :   %d \n",bmpInfoHeader->bmpInfo_planes);
     cvt_RGB888_BGR888(rgb,width*height);
     REVERSE_RGB888( rgb,width,height);
-    free_bmpRes();
-}
-//************************test************************************//
-#define test_rgb_width (640)
-#define test_rgb_height (800)
-#define test_save_path "test.bmp"
-#define test_load_path "frame_4394.bin"
-unsigned char testRGB888[test_rgb_width*test_rgb_height*3];
-unsigned char testLoadY8[test_rgb_width*test_rgb_height];
-
-void main()
-{
-    // loadFile(test_load_path,test_rgb_width*test_rgb_height,testLoadY8);
-    // for(int i=0;i<test_rgb_width*test_rgb_height;i++)
-    // {
-    //     testRGB888[i*3]   = testLoadY8[i];
-    //     testRGB888[i*3+1] = testLoadY8[i];
-    //     testRGB888[i*3+2] = testLoadY8[i];
-    // }
-    // save_RawRGB_bmpFile(test_save_path,testRGB888,test_rgb_width*test_rgb_height*3,test_rgb_width,test_rgb_height);
-    readBMPInfo(test_save_path);
+    memcpy(raw,rgb,size);
 }

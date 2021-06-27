@@ -1,6 +1,8 @@
 #!/bin/bash
 #set DSP_FACTORy_ROOT_PATH
 export DSP_FACTORY_ROOT_PATH=$(pwd)
+#set LIBFORMAT DRIVER PATH
+export LIBFORMAT_DRIVER_PATH=$(pwd)/libFormat
 #Set your NDK Install Path
 export NDK_ROOT_PATH=/root/Android/Sdk/ndk/22.0.7026061
 #Set TARGET_COMPILE_PLATFORM

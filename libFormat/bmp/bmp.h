@@ -3,6 +3,7 @@
 #define BITMAP_FILE_HEADER_LENGTH (14)
 #define BITMAP_INFO_HEADER_LENGTH (40)
 #define BITMAP_HEADER_LENGTH (BITMAP_FILE_HEADER_LENGTH+BITMAP_INFO_HEADER_LENGTH)
+#define BITCOUNT_TO_BYTE_SHIFT    (3)
 typedef struct bitmap_file_header_t
 {
 	unsigned short  bmpFile_type;
@@ -77,7 +78,22 @@ unsigned char* read_bmpFile_RawRGB(
                         bitmap_file_header *bmpFileHeader,
                         bitmap_info_header *bmpInfoHeader
 );
-void readBMPInfo(
-						char * loadPath
+void readBMP(			
+						char * loadPath,
+						bitmap_file_header *bmpFileHeader,
+						bitmap_info_header *bmpInfoHeader,
+						unsigned char *raw
+);
+void REVERSE_Gray8(
+						unsigned char * p_dataGray8,
+						unsigned int width,
+						unsigned int height
+);
+void save_RawGray8_bmpFile(
+						char * savePath,
+						unsigned char * p_dataGray8,
+						unsigned int size,
+						unsigned int width,
+						unsigned int height
 );
 #endif //__BMP_H__
