@@ -268,6 +268,66 @@ void do_RGB2GRAY_I16_NeonVTBL3(unsigned char *src, unsigned char * dst, unsigned
     #undef I16_WEIGHT_GREEN_LIGHT
     #undef I16_WEIGHT_BLUE_LIGHT
 }
+void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
+{
+    #define I16_WEIGHT_RED_LIGHT      (76)
+    #define I16_WEIGHT_GREEN_LIGHT    (150)
+    #define I16_WEIGHT_BLUE_LIGHT     (30)
+    #define NEON_D_SIMD_LENGTH_BYTES  (8)
+    uint8x8_t v_uchar8[26];
+    uint16x4_t v_ushort4[2];
+    uint16x8_t v_ushort8[3];
+    v_uchar8[3]= vld1_u8(index_R1);
+    v_uchar8[4]= vld1_u8(index_R2);
+    v_uchar8[5]= vld1_u8(index_R3);
+    v_uchar8[9]= vld1_u8(index_G1);
+    v_uchar8[10]= vld1_u8(index_G2);
+    v_uchar8[11]= vld1_u8(index_G3); 
+    v_uchar8[12]= vld1_u8(index_B1);
+    v_uchar8[13]= vld1_u8(index_B2);
+    v_uchar8[14]= vld1_u8(index_B3);  
+    v_uchar8[15]= vld1_u8(index_low);
+    v_uchar8[16]= vld1_u8(index_high);
+    for(int i=0;i<height;i++)
+    {
+        for(int j=0;j<width*3;j+=NEON_D_SIMD_LENGTH_BYTES*3)
+        {
+            v_uchar8[0]=vld1_u8(src+j);// uint8x8_t  v_load1          = vld1_u8(src+j);
+            v_uchar8[1]=vld1_u8(src+j+8);// uint8x8_t  v_load2          = vld1_u8(src+j+8);
+            v_uchar8[2]=vld1_u8(src+j+16);// uint8x8_t  v_load3          = vld1_u8(src+j+16);
+            v_uchar8[6]= vtbl1_u8(v_uchar8[0],v_uchar8[3]) | vtbl1_u8(v_uchar8[1],v_uchar8[4]) | vtbl1_u8(v_uchar8[2],v_uchar8[5]);//uint8x8_t  v8_red_ch        = vtbl1_u8(v_load1,v_index_r1) | vtbl1_u8(v_load2,v_index_r2) | vtbl1_u8(v_load3,v_index_r3);
+            v_uchar8[7]= vtbl1_u8(v_uchar8[0],v_uchar8[9]) | vtbl1_u8(v_uchar8[1],v_uchar8[10]) | vtbl1_u8(v_uchar8[2],v_uchar8[11]);// uint8x8_t  v8_green_ch      = vtbl1_u8(v_load1,v_index_g1) | vtbl1_u8(v_load2,v_index_g2) | vtbl1_u8(v_load3,v_index_g3);
+            v_uchar8[8]= vtbl1_u8(v_uchar8[0],v_uchar8[12]) | vtbl1_u8(v_uchar8[1],v_uchar8[13]) | vtbl1_u8(v_uchar8[2],v_uchar8[14]);// uint8x8_t  v8_blue_ch       = vtbl1_u8(v_load1,v_index_b1) | vtbl1_u8(v_load2,v_index_b2) | vtbl1_u8(v_load3,v_index_b3);
+            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[6],v_uchar8[15]));//uint16x4_t v16_red_l        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_low));
+            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[6],v_uchar8[16]));//uint16x4_t v16_red_h        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_high));
+            v_ushort8[0]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_red_cmb      = vcombine_u16(v16_red_l,v16_red_h);
+            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[7],v_uchar8[15]));//uint16x4_t v16_green_l      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_low));
+            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[7],v_uchar8[16]));//uint16x4_t v16_green_h      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_high));
+            v_ushort8[1]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_green_cmb    = vcombine_u16(v16_green_l,v16_green_h);
+            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[8],v_uchar8[15]));//uint16x4_t v16_blue_l       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_low));
+            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[8],v_uchar8[16]));//uint16x4_t v16_blue_h       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_high));
+            v_ushort8[2]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_blue_cmb     = vcombine_u16(v16_blue_l,v16_blue_h);
+            v_ushort8[0]= (v_ushort8[0]*I16_WEIGHT_RED_LIGHT+v_ushort8[1]*I16_WEIGHT_GREEN_LIGHT+v_ushort8[2]*I16_WEIGHT_BLUE_LIGHT)>>8;//uint16x8_t v16_gray         = (v16_red_cmb*I16_WEIGHT_RED_LIGHT+v16_green_cmb*I16_WEIGHT_GREEN_LIGHT+v16_blue_cmb*I16_WEIGHT_BLUE_LIGHT)>>8;
+            v_uchar8[0] = vreinterpret_u8_u16(vget_low_u16(v_ushort8[0]));//uint8x8_t  v8_gray_l        = vreinterpret_u8_u16(vget_low_u16(v16_gray));
+            v_uchar8[2] = vld1_u8(index_cmb1);
+            v_uchar8[6] = vtbl1_u8(v_uchar8[0],v_uchar8[2]);//uint8x8_t  v8_dst_1         = vtbl1_u8(v8_gray_l,v_index_cmb1);
+            vst1_u8(dst+j,v_uchar8[6]);//vst1_u8(dst+j,v8_dst_1);
+            v_uchar8[2] = vld1_u8(index_cmb2);
+            v_uchar8[6] = vld1_u8(index_cmb3);
+            v_uchar8[1] = vreinterpret_u8_u16(vget_high_u16(v_ushort8[0]));//uint8x8_t  v8_gray_h        = vreinterpret_u8_u16(vget_high_u16(v16_gray));
+            v_uchar8[7] = vtbl1_u8(v_uchar8[0],v_uchar8[2]) | vtbl1_u8(v_uchar8[1],v_uchar8[6]);//uint8x8_t  v8_dst_2         = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
+            vst1_u8(dst+j+8,v_uchar8[7]);//vst1_u8(dst+j+8,v8_dst_2);
+            v_uchar8[2] = vld1_u8(index_cmb4);
+            v_uchar8[8] = vtbl1_u8(v_uchar8[1],v_uchar8[2]);//uint8x8_t  v8_dst_3         = vtbl1_u8(v8_gray_h,v_index_cmb4);
+            vst1_u8(dst+j+16,v_uchar8[8]);//vst1_u8(dst+j+16,v8_dst_3);
+        }
+        src+=width*3;
+        dst+=width*3;
+    }
+    #undef I16_WEIGHT_RED_LIGHT
+    #undef I16_WEIGHT_GREEN_LIGHT
+    #undef I16_WEIGHT_BLUE_LIGHT
+}
 #endif
 #define MAX_LOAD_LOCAL_BYTES (1024*1024)
 void do_neon_test()
@@ -314,7 +374,7 @@ void do_arm_test()
     // #ifdef  _USE_ARM_NEON_OPT_
     // do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
     // #else
-    do_RGB2GRAY_I16(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16_NeonOP_Reg(testRGB888,dst,read_width,read_height);
     // #endif
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
@@ -326,12 +386,51 @@ void do_arm_test()
     free_bmpRes();
     // #define _USE_ARM_NEON_OPT_
 }
+void test()
+{
+    unsigned char table[32];
+    unsigned char index[8]={0,1,2,3,4,5,6,7};
+    unsigned char result[8];
+    for(int i=0;i<32;i+=1)
+    {
+        table[i] = i;
+    }
+    uint8x8x4_t v_table = vld4_u8(table);
+    // uint8x8_t v_index=vld1_u8(index);
+    // uint8x8_t v_result = vtbl4_u8(v_table,v_index);
+    vst1_u8(result,v_table.val[0]);
+    for(int i=0;i<8;i++)
+    {
+        printf("result[0][%d]=%d\n",i,result[i]);
+    }
+    vst1_u8(result,v_table.val[1]);
+    for(int i=0;i<8;i++)
+    {
+        printf("result[1][%d]=%d\n",i,result[i]);
+    }
+    vst1_u8(result,v_table.val[2]);
+    for(int i=0;i<8;i++)
+    {
+        printf("result[2][%d]=%d\n",i,result[i]);
+    }
+    vst1_u8(result,v_table.val[3]);
+    for(int i=0;i<8;i++)
+    {
+        printf("result[3][%d]=%d\n",i,result[i]);
+    }
+    for(int i=0;i<32;i++)
+    {
+        printf("table[%d]=%d\n",i,table[i]);
+    }
+    
+}
 int main()
 {
-    for(int i=0;i<50;i++){
-        do_neon_test();
-        do_arm_test();
-    }
+    test();
+    // for(int i=0;i<50;i++){
+    //     do_neon_test();
+    //     do_arm_test();
+    // }
     return 0;
 }
 void logMenu()

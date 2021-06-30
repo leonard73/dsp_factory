@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_ARM_MODE  := arm
-LOCAL_CFLAGS    := -fPIE -fPIC -mfloat-abi=softfp -mfpu=neon -DNDK -O0
+LOCAL_CFLAGS    := -fPIE -fPIC -mfloat-abi=softfp -mfpu=neon -DNDK -O2
 LOCAL_LDLIBS    := -llog -landroid
 LOCAL_CFLAGS    += -DPLATFORM_ANDROID_ARM64 -D_USE_ARM_NEON_OPT_
 LOCAL_SRC_FILES:= ../../Codes/NeonLInearTransform.c
