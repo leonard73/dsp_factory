@@ -210,6 +210,7 @@ void do_RGB2GRAY_I16_Neon(unsigned char *src, unsigned char * dst, unsigned int 
     #undef I16_WEIGHT_RED_LIGHT
     #undef I16_WEIGHT_GREEN_LIGHT
     #undef I16_WEIGHT_BLUE_LIGHT
+    #undef NEON_D_SIMD_LENGTH_BYTES
 }
 void do_RGB2GRAY_I16_NeonVTBL3(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
 {
@@ -219,47 +220,53 @@ void do_RGB2GRAY_I16_NeonVTBL3(unsigned char *src, unsigned char * dst, unsigned
     #define NEON_D_SIMD_LENGTH_BYTES  (8)
     uint8x8_t v_index_low       = vld1_u8(index_low);
     uint8x8_t v_index_high      = vld1_u8(index_high);
-    uint8x8_t v_index_r1        = vld1_u8(index_R1);
-    uint8x8_t v_index_r2        = vld1_u8(index_R2);
-    uint8x8_t v_index_r3        = vld1_u8(index_R3);
-    uint8x8_t v_index_g1        = vld1_u8(index_G1);
-    uint8x8_t v_index_g2        = vld1_u8(index_G2);
-    uint8x8_t v_index_g3        = vld1_u8(index_G3);
-    uint8x8_t v_index_b1        = vld1_u8(index_B1);
-    uint8x8_t v_index_b2        = vld1_u8(index_B2);
-    uint8x8_t v_index_b3        = vld1_u8(index_B3);
     uint8x8_t v_index_cmb1      = vld1_u8(index_cmb1);
     uint8x8_t v_index_cmb2      = vld1_u8(index_cmb2);
     uint8x8_t v_index_cmb3      = vld1_u8(index_cmb3);
     uint8x8_t v_index_cmb4      = vld1_u8(index_cmb4);
     for(int i=0;i<height;i++)
     {
-        for(int j=0;j<width*3;j+=NEON_D_SIMD_LENGTH_BYTES*3)
+        for(int j=0;j<width*3;j+=NEON_D_SIMD_LENGTH_BYTES*6)
         {
-            uint8x8_t  v_load1          = vld1_u8(src+j);
-            uint8x8_t  v_load2          = vld1_u8(src+j+8);
-            uint8x8_t  v_load3          = vld1_u8(src+j+16);
-            uint8x8_t  v8_red_ch        = vtbl1_u8(v_load1,v_index_r1) | vtbl1_u8(v_load2,v_index_r2) | vtbl1_u8(v_load3,v_index_r3);
-            uint8x8_t  v8_green_ch      = vtbl1_u8(v_load1,v_index_g1) | vtbl1_u8(v_load2,v_index_g2) | vtbl1_u8(v_load3,v_index_g3);
-            uint8x8_t  v8_blue_ch       = vtbl1_u8(v_load1,v_index_b1) | vtbl1_u8(v_load2,v_index_b2) | vtbl1_u8(v_load3,v_index_b3);
-            uint16x4_t v16_red_l        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_low));
-            uint16x4_t v16_red_h        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_high));
-            uint16x4_t v16_green_l      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_low));
-            uint16x4_t v16_green_h      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_high));
-            uint16x4_t v16_blue_l       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_low));
-            uint16x4_t v16_blue_h       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_high));
-            uint16x8_t v16_red_cmb      = vcombine_u16(v16_red_l,v16_red_h);
-            uint16x8_t v16_green_cmb    = vcombine_u16(v16_green_l,v16_green_h);
-            uint16x8_t v16_blue_cmb     = vcombine_u16(v16_blue_l,v16_blue_h);
-            uint16x8_t v16_gray         = (v16_red_cmb*I16_WEIGHT_RED_LIGHT+v16_green_cmb*I16_WEIGHT_GREEN_LIGHT+v16_blue_cmb*I16_WEIGHT_BLUE_LIGHT)>>8;
-            uint8x8_t  v8_gray_l        = vreinterpret_u8_u16(vget_low_u16(v16_gray));
-            uint8x8_t  v8_gray_h        = vreinterpret_u8_u16(vget_high_u16(v16_gray));
-            uint8x8_t  v8_dst_1         = vtbl1_u8(v8_gray_l,v_index_cmb1);
-            uint8x8_t  v8_dst_2         = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
-            uint8x8_t  v8_dst_3         = vtbl1_u8(v8_gray_h,v_index_cmb4);
+            uint8x16x3_t v_load_rgb      = vld3q_u8(src+j);
+            uint8x8_t v_r=vget_low_u8(v_load_rgb.val[0]);
+            uint8x8_t v_g=vget_low_u8(v_load_rgb.val[1]);
+            uint8x8_t v_b=vget_low_u8(v_load_rgb.val[2]);
+            uint16x4_t v16_red_l   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_low));
+            uint16x4_t v16_red_h   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_high));
+            uint16x4_t v16_green_l = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_low));
+            uint16x4_t v16_green_h = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_high));
+            uint16x4_t v16_blue_l  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_low));
+            uint16x4_t v16_blue_h  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_high));
+            uint16x4_t v16_gray_l  = (v16_red_l*I16_WEIGHT_RED_LIGHT+v16_green_l*I16_WEIGHT_GREEN_LIGHT+v16_blue_l*I16_WEIGHT_BLUE_LIGHT)>>8;
+            uint16x4_t v16_gray_h  = (v16_red_h*I16_WEIGHT_RED_LIGHT+v16_green_h*I16_WEIGHT_GREEN_LIGHT+v16_blue_h*I16_WEIGHT_BLUE_LIGHT)>>8;
+            uint8x8_t  v8_gray_l   = vreinterpret_u8_u16(v16_gray_l);
+            uint8x8_t  v8_gray_h   = vreinterpret_u8_u16(v16_gray_h);
+            uint8x8_t  v8_dst_1    = vtbl1_u8(v8_gray_l,v_index_cmb1);
+            uint8x8_t  v8_dst_2    = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
+            uint8x8_t  v8_dst_3    = vtbl1_u8(v8_gray_h,v_index_cmb4);
             vst1_u8(dst+j,v8_dst_1);
             vst1_u8(dst+j+8,v8_dst_2);
             vst1_u8(dst+j+16,v8_dst_3);
+            v_r=vget_high_u8(v_load_rgb.val[0]);
+            v_g=vget_high_u8(v_load_rgb.val[1]);
+            v_b=vget_high_u8(v_load_rgb.val[2]);
+            v16_red_l   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_low));
+            v16_red_h   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_high));
+            v16_green_l = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_low));
+            v16_green_h = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_high));
+            v16_blue_l  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_low));
+            v16_blue_h  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_high));
+            v16_gray_l  = (v16_red_l*I16_WEIGHT_RED_LIGHT+v16_green_l*I16_WEIGHT_GREEN_LIGHT+v16_blue_l*I16_WEIGHT_BLUE_LIGHT)>>8;
+            v16_gray_h  = (v16_red_h*I16_WEIGHT_RED_LIGHT+v16_green_h*I16_WEIGHT_GREEN_LIGHT+v16_blue_h*I16_WEIGHT_BLUE_LIGHT)>>8;
+            v8_gray_l   = vreinterpret_u8_u16(v16_gray_l);
+            v8_gray_h   = vreinterpret_u8_u16(v16_gray_h);
+            v8_dst_1    = vtbl1_u8(v8_gray_l,v_index_cmb1);
+            v8_dst_2    = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
+            v8_dst_3    = vtbl1_u8(v8_gray_h,v_index_cmb4);
+            vst1_u8(dst+j+24,v8_dst_1);
+            vst1_u8(dst+j+32,v8_dst_2);
+            vst1_u8(dst+j+40,v8_dst_3);
         }
         src+=width*3;
         dst+=width*3;
@@ -267,6 +274,7 @@ void do_RGB2GRAY_I16_NeonVTBL3(unsigned char *src, unsigned char * dst, unsigned
     #undef I16_WEIGHT_RED_LIGHT
     #undef I16_WEIGHT_GREEN_LIGHT
     #undef I16_WEIGHT_BLUE_LIGHT
+    #undef NEON_D_SIMD_LENGTH_BYTES
 }
 void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
 {
@@ -327,6 +335,7 @@ void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigne
     #undef I16_WEIGHT_RED_LIGHT
     #undef I16_WEIGHT_GREEN_LIGHT
     #undef I16_WEIGHT_BLUE_LIGHT
+    #undef NEON_D_SIMD_LENGTH_BYTES
 }
 #endif
 #define MAX_LOAD_LOCAL_BYTES (1024*1024)
@@ -344,7 +353,7 @@ void do_neon_test()
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes);
     gettimeofday(&tpstart,NULL);  
     #ifdef  _USE_ARM_NEON_OPT_
-    do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16_Neon(testRGB888,dst,read_width,read_height);
     #else
     do_RGB2GRAY_I16(testRGB888,dst,read_width,read_height);
     #endif
@@ -374,7 +383,7 @@ void do_arm_test()
     // #ifdef  _USE_ARM_NEON_OPT_
     // do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
     // #else
-    do_RGB2GRAY_I16_NeonOP_Reg(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
     // #endif
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
@@ -427,10 +436,10 @@ void test()
 int main()
 {
     test();
-    // for(int i=0;i<50;i++){
-    //     do_neon_test();
-    //     do_arm_test();
-    // }
+    for(int i=0;i<50;i++){
+        do_neon_test();
+        do_arm_test();
+    }
     return 0;
 }
 void logMenu()
