@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <arm_neon.h>
 #include <bmp.h>
+#include <math.h>
 #ifdef PLATFORM_ANDROID_ARM64
 #define TEST_DATA_PATH "/data/local/tmp/splash.bmp"
 #define TEST_OUT_ARM_DATA_PATH "/data/local/tmp/splash_out_cpu.bmp"
@@ -15,6 +16,33 @@
 #endif
 
 #define TEST_DATA_LENGTH_BYTES (116536)
+#define TABLE_SIZE (256)
+unsigned char GammaTBL[TABLE_SIZE];
+void generateTable(unsigned char * table,unsigned int size)
+{
+    for(unsigned int i=0;i<size ;i++)
+    {
+        table[i] = (uint8_t)round((pow(i/255.f, 1/2.2)*255.f));
+        printf("table[%3d]=%3d\n",i,table[i]);
+    }
+}
+void generateTableTalyer(unsigned char * table,unsigned int size)
+{
+    static int first=1;
+    for(unsigned int i=0;i<size && first;i++)
+    {
+        table[i] = (uint8_t)round((pow(i/255.f, 1/2.2)*255.f));
+        printf("table[%3d]=%3d\n",i,table[i]);
+    }
+    first=0;
+}
+void GammaCorrection(unsigned char *src,unsigned int width,unsigned char * table)
+{
+    for(unsigned int i=0;i<width;i++)
+    {
+        src[i] = table[src[i]];
+    }
+}
 struct timeval tpstart,tpend;
 long timeuse_us; 
 void load_test_data(uint8_t * load_buf,char* load_path,unsigned int load_length_bytes)
@@ -338,7 +366,21 @@ void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigne
     #undef NEON_D_SIMD_LENGTH_BYTES
 }
 #endif
-#define MAX_LOAD_LOCAL_BYTES (1024*1024)
+#define MAX_LOAD_LOCAL_BYTES (1024*800)
+void log_result(unsigned char * data_p,unsigned int start,unsigned int end, unsigned int step,char * tag)
+{
+    for(unsigned int i=start;i<end;i+=step)
+    {
+        printf("[%s]: data[%3d]=%3d\n",tag,i,data_p[i]);
+    }
+}
+void log_result2(unsigned char * data_p1,unsigned char * data_p2,unsigned int start,unsigned int end, unsigned int step,char * tag)
+{
+    for(unsigned int i=start;i<end;i+=step)
+    {
+        printf("[%s]: data1[%3d]=%3d ; data2[%3d]=%3d\n",tag,i,data_p1[i],i,data_p2[i]);
+    }
+}
 void do_neon_test()
 {
     struct timeval tpstart,tpend;
@@ -349,18 +391,21 @@ void do_neon_test()
     readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
     unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
     unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
-    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)<<BITCOUNT_TO_BYTE_SHIFT;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes);
     gettimeofday(&tpstart,NULL);  
+    generateTable(GammaTBL,TABLE_SIZE);
     #ifdef  _USE_ARM_NEON_OPT_
     do_RGB2GRAY_I16_Neon(testRGB888,dst,read_width,read_height);
     #else
     do_RGB2GRAY_I16(testRGB888,dst,read_width,read_height);
     #endif
+    memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
+    GammaCorrection(dst,read_width*read_height*read_pixel_bytes,GammaTBL);
     gettimeofday(&tpend,NULL); 
+    // log_result(dst,1000,50000,1500,"Neon");
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN NEON OP Latency = %lu US\n",timeuse_us/times++);
-    // memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
     save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
@@ -377,18 +422,21 @@ void do_arm_test()
     readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
     unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
     unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
-    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)<<BITCOUNT_TO_BYTE_SHIFT;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
     gettimeofday(&tpstart,NULL);  
-    // #ifdef  _USE_ARM_NEON_OPT_
-    // do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
-    // #else
+    generateTable(GammaTBL,TABLE_SIZE);
+    #ifdef  _USE_ARM_NEON_OPT_
     do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
-    // #endif
+    #else
+    do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
+    #endif
+    memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
+    GammaCorrection(dst,read_width*read_height*read_pixel_bytes,GammaTBL);
     gettimeofday(&tpend,NULL); 
+    // log_result(dst,1000,50000,1500,"Arm");
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN ARM  OP Latency = %lu US\n",timeuse_us/times++);
-    // memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
     save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
@@ -433,10 +481,24 @@ void test()
     }
     
 }
+// unsigned char input[256];
+// unsigned char output[256];
+// void gammaTest()
+// {
+//    generateTable(GammaTBL,TABLE_SIZE);
+//    for(unsigned int i=0;i<256;i++)
+//    {
+//        input[i]=i;
+//        output[i]=i;
+//    }
+//    GammaCorrection(output,256,GammaTBL);
+//    log_result2(input,output,0,256,1,"Gamma");
+// }
 int main()
 {
-    test();
-    for(int i=0;i<50;i++){
+    // gammaTest();
+    // test();
+    for(int i=0;i<1;i++){
         do_neon_test();
         do_arm_test();
     }
