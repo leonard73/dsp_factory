@@ -17,30 +17,75 @@
 
 #define TEST_DATA_LENGTH_BYTES (116536)
 #define TABLE_SIZE (256)
-unsigned char GammaTBL[TABLE_SIZE];
 void generateTable(unsigned char * table,unsigned int size)
 {
     for(unsigned int i=0;i<size ;i++)
     {
         table[i] = (uint8_t)round((pow(i/255.f, 1/2.2)*255.f));
-        printf("table[%3d]=%3d\n",i,table[i]);
+        // printf("table[%3d]=%3d\n",i,table[i]);
     }
 }
-void generateTableTalyer(unsigned char * table,unsigned int size)
-{
-    static int first=1;
-    for(unsigned int i=0;i<size && first;i++)
-    {
-        table[i] = (uint8_t)round((pow(i/255.f, 1/2.2)*255.f));
-        printf("table[%3d]=%3d\n",i,table[i]);
-    }
-    first=0;
-}
-void GammaCorrection(unsigned char *src,unsigned int width,unsigned char * table)
+void GammaCorrection(unsigned char *src,unsigned char *dst,unsigned int width,unsigned char * table)
 {
     for(unsigned int i=0;i<width;i++)
     {
-        src[i] = table[src[i]];
+        dst[i] = table[src[i]];
+    }
+}
+unsigned char step32_array[8]     ={32,32,32,32,32,32,32,32};
+unsigned char mask_init_array[8]  ={0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+unsigned char array_const31[8]    ={31,31,31,31,31,31,31,31};
+unsigned char array_ones[8]       ={1,1,1,1,1,1,1,1}; 
+void test()
+{
+    #define TEST_ELEM_BYTES  (256)
+    #define SIMD_Q_LEN_BYTES (16)
+    uint8_t BGR888_src[TEST_ELEM_BYTES]={1,2,3,4,5,6,7,8,9,10,11,12,13,
+                        14,15,16,17,18,19,20,21,22,23,24};
+    uint8_t BGR888_dst[TEST_ELEM_BYTES];
+    uint8_t adder_array[SIMD_Q_LEN_BYTES]={240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240};
+    uint8x16_t v8_adder = vld1q_u8(adder_array); 
+    for(int i=0;i<TEST_ELEM_BYTES;i+=SIMD_Q_LEN_BYTES)
+    {
+        uint8x16_t v8_load   = vld1q_u8(BGR888_src+i);
+        uint8x16_t v8_result = vaddq_u8(v8_load,v8_adder);
+        vst1q_u8(BGR888_dst+i,v8_result);
+    }
+    for(int i=0;i<TEST_ELEM_BYTES;i++)
+    {
+        printf("src[%3d] = %3d; dst[%3d] = %3d\n",i,BGR888_src[i],i,BGR888_dst[i]);
+    }
+}
+void GammaCorrection_Neon(unsigned char *src,unsigned char *dst,unsigned int width,unsigned char * table)
+{
+    //load table into vector 256 level needs 32x8 8*vec4
+    uint8x8x4_t v8_tbl[8];
+    for(unsigned int i=0;i<8;i++)
+    {
+        v8_tbl[i].val[0] = vld1_u8(table+32*i);
+        v8_tbl[i].val[1] = vld1_u8(table+32*i+8);
+        v8_tbl[i].val[2] = vld1_u8(table+32*i+16);
+        v8_tbl[i].val[3] = vld1_u8(table+32*i+24);
+    }
+    uint8x8_t v_result = vcreate_u8(0x00000000);
+    uint8x8_t v_step32 = vld1_u8(step32_array);
+    uint8x8_t v_step31 = vld1_u8(array_const31);
+    uint8x8_t v_mask   = vld1_u8(mask_init_array);
+    uint8x8_t v_ones   = vld1_u8(array_ones);
+    for(unsigned int i=0;i<width;i+=8)
+    {
+        uint8x8_t v_index  =  vld1_u8(src+i);
+        for(unsigned int k=0;k<8;k++)
+        {
+            
+            v_result &= vtbl4_u8(v8_tbl[k],v_index);
+            v_index   = vsub_u8(v_index,v_step32);
+            // v_mask   = vmax_u8(v_index,v_step32) ;
+            // v_mask   = 255*vmax_u8((~(255*vsub_u8(v_mask,v_step31))&v_mask),v_ones);
+            // v_mask   = v_mask & v_result;
+            // v_index  = vsub_u8(v_index,v_step32);
+        }
+        vst1_u8(dst+i,v_result);
     }
 }
 struct timeval tpstart,tpend;
@@ -242,123 +287,36 @@ void do_RGB2GRAY_I16_Neon(unsigned char *src, unsigned char * dst, unsigned int 
 }
 void do_RGB2GRAY_I16_NeonVTBL3(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
 {
-    #define I16_WEIGHT_RED_LIGHT      (76)
-    #define I16_WEIGHT_GREEN_LIGHT    (150)
-    #define I16_WEIGHT_BLUE_LIGHT     (30)
+    #define I16_WEIGHT_RED_LIGHT      (0x4c4c4c4c4c4c4c4c) //76
+    #define I16_WEIGHT_GREEN_LIGHT    (0x9696969696969696) //150
+    #define I16_WEIGHT_BLUE_LIGHT     (0x1e1e1e1e1e1e1e1e) //30
     #define NEON_D_SIMD_LENGTH_BYTES  (8)
-    uint8x8_t v_index_low       = vld1_u8(index_low);
-    uint8x8_t v_index_high      = vld1_u8(index_high);
-    uint8x8_t v_index_cmb1      = vld1_u8(index_cmb1);
-    uint8x8_t v_index_cmb2      = vld1_u8(index_cmb2);
-    uint8x8_t v_index_cmb3      = vld1_u8(index_cmb3);
-    uint8x8_t v_index_cmb4      = vld1_u8(index_cmb4);
-    for(int i=0;i<height;i++)
+    uint8x8_t  v_r_coff  = vcreate_u8(I16_WEIGHT_RED_LIGHT);
+    uint8x8_t  v_g_coff  = vcreate_u8(I16_WEIGHT_GREEN_LIGHT);
+    uint8x8_t  v_b_coff  = vcreate_u8(I16_WEIGHT_BLUE_LIGHT);
+    uint16x8_t v_zero    = vcombine_u16(vcreate_u8(0x0000000000000000),vcreate_u8(0x0000000000000000));
+    unsigned int width_pixel_bytes = width*3;
+    unsigned int loop_step_bytes   = NEON_D_SIMD_LENGTH_BYTES*3;
+    uint8x8x3_t v_store_rgb;
+    uint8x8x3_t v_load_rgb ;
+    uint16x8_t  v16_result;
+    uint8x8_t   v8_result_l;
+    for(unsigned int i=0;i<height;i++)
     {
-        for(int j=0;j<width*3;j+=NEON_D_SIMD_LENGTH_BYTES*6)
+        for(unsigned int j=0;j<width_pixel_bytes;j+=loop_step_bytes)
         {
-            uint8x16x3_t v_load_rgb      = vld3q_u8(src+j);
-            uint8x8_t v_r=vget_low_u8(v_load_rgb.val[0]);
-            uint8x8_t v_g=vget_low_u8(v_load_rgb.val[1]);
-            uint8x8_t v_b=vget_low_u8(v_load_rgb.val[2]);
-            uint16x4_t v16_red_l   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_low));
-            uint16x4_t v16_red_h   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_high));
-            uint16x4_t v16_green_l = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_low));
-            uint16x4_t v16_green_h = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_high));
-            uint16x4_t v16_blue_l  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_low));
-            uint16x4_t v16_blue_h  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_high));
-            uint16x4_t v16_gray_l  = (v16_red_l*I16_WEIGHT_RED_LIGHT+v16_green_l*I16_WEIGHT_GREEN_LIGHT+v16_blue_l*I16_WEIGHT_BLUE_LIGHT)>>8;
-            uint16x4_t v16_gray_h  = (v16_red_h*I16_WEIGHT_RED_LIGHT+v16_green_h*I16_WEIGHT_GREEN_LIGHT+v16_blue_h*I16_WEIGHT_BLUE_LIGHT)>>8;
-            uint8x8_t  v8_gray_l   = vreinterpret_u8_u16(v16_gray_l);
-            uint8x8_t  v8_gray_h   = vreinterpret_u8_u16(v16_gray_h);
-            uint8x8_t  v8_dst_1    = vtbl1_u8(v8_gray_l,v_index_cmb1);
-            uint8x8_t  v8_dst_2    = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
-            uint8x8_t  v8_dst_3    = vtbl1_u8(v8_gray_h,v_index_cmb4);
-            vst1_u8(dst+j,v8_dst_1);
-            vst1_u8(dst+j+8,v8_dst_2);
-            vst1_u8(dst+j+16,v8_dst_3);
-            v_r=vget_high_u8(v_load_rgb.val[0]);
-            v_g=vget_high_u8(v_load_rgb.val[1]);
-            v_b=vget_high_u8(v_load_rgb.val[2]);
-            v16_red_l   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_low));
-            v16_red_h   = vreinterpret_u16_u8(vtbl1_u8(v_r,v_index_high));
-            v16_green_l = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_low));
-            v16_green_h = vreinterpret_u16_u8(vtbl1_u8(v_g,v_index_high));
-            v16_blue_l  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_low));
-            v16_blue_h  = vreinterpret_u16_u8(vtbl1_u8(v_b,v_index_high));
-            v16_gray_l  = (v16_red_l*I16_WEIGHT_RED_LIGHT+v16_green_l*I16_WEIGHT_GREEN_LIGHT+v16_blue_l*I16_WEIGHT_BLUE_LIGHT)>>8;
-            v16_gray_h  = (v16_red_h*I16_WEIGHT_RED_LIGHT+v16_green_h*I16_WEIGHT_GREEN_LIGHT+v16_blue_h*I16_WEIGHT_BLUE_LIGHT)>>8;
-            v8_gray_l   = vreinterpret_u8_u16(v16_gray_l);
-            v8_gray_h   = vreinterpret_u8_u16(v16_gray_h);
-            v8_dst_1    = vtbl1_u8(v8_gray_l,v_index_cmb1);
-            v8_dst_2    = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
-            v8_dst_3    = vtbl1_u8(v8_gray_h,v_index_cmb4);
-            vst1_u8(dst+j+24,v8_dst_1);
-            vst1_u8(dst+j+32,v8_dst_2);
-            vst1_u8(dst+j+40,v8_dst_3);
+                        v_load_rgb         = vld3_u8(src+j);
+                        v16_result         = vmlal_u8(v_zero,    v_load_rgb.val[0],v_r_coff);
+                        v16_result         = vmlal_u8(v16_result,v_load_rgb.val[1],v_g_coff);
+                        v16_result         = vmlal_u8(v16_result,v_load_rgb.val[2],v_b_coff);
+                        v8_result_l        = vrshrn_n_u16(v16_result,8);
+                        v_store_rgb.val[0] = v8_result_l;
+                        v_store_rgb.val[1] = v8_result_l;
+                        v_store_rgb.val[2] = v8_result_l;
+            vst3_u8(dst+j,v_store_rgb);
         }
-        src+=width*3;
-        dst+=width*3;
-    }
-    #undef I16_WEIGHT_RED_LIGHT
-    #undef I16_WEIGHT_GREEN_LIGHT
-    #undef I16_WEIGHT_BLUE_LIGHT
-    #undef NEON_D_SIMD_LENGTH_BYTES
-}
-void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
-{
-    #define I16_WEIGHT_RED_LIGHT      (76)
-    #define I16_WEIGHT_GREEN_LIGHT    (150)
-    #define I16_WEIGHT_BLUE_LIGHT     (30)
-    #define NEON_D_SIMD_LENGTH_BYTES  (8)
-    uint8x8_t v_uchar8[26];
-    uint16x4_t v_ushort4[2];
-    uint16x8_t v_ushort8[3];
-    v_uchar8[3]= vld1_u8(index_R1);
-    v_uchar8[4]= vld1_u8(index_R2);
-    v_uchar8[5]= vld1_u8(index_R3);
-    v_uchar8[9]= vld1_u8(index_G1);
-    v_uchar8[10]= vld1_u8(index_G2);
-    v_uchar8[11]= vld1_u8(index_G3); 
-    v_uchar8[12]= vld1_u8(index_B1);
-    v_uchar8[13]= vld1_u8(index_B2);
-    v_uchar8[14]= vld1_u8(index_B3);  
-    v_uchar8[15]= vld1_u8(index_low);
-    v_uchar8[16]= vld1_u8(index_high);
-    for(int i=0;i<height;i++)
-    {
-        for(int j=0;j<width*3;j+=NEON_D_SIMD_LENGTH_BYTES*3)
-        {
-            v_uchar8[0]=vld1_u8(src+j);// uint8x8_t  v_load1          = vld1_u8(src+j);
-            v_uchar8[1]=vld1_u8(src+j+8);// uint8x8_t  v_load2          = vld1_u8(src+j+8);
-            v_uchar8[2]=vld1_u8(src+j+16);// uint8x8_t  v_load3          = vld1_u8(src+j+16);
-            v_uchar8[6]= vtbl1_u8(v_uchar8[0],v_uchar8[3]) | vtbl1_u8(v_uchar8[1],v_uchar8[4]) | vtbl1_u8(v_uchar8[2],v_uchar8[5]);//uint8x8_t  v8_red_ch        = vtbl1_u8(v_load1,v_index_r1) | vtbl1_u8(v_load2,v_index_r2) | vtbl1_u8(v_load3,v_index_r3);
-            v_uchar8[7]= vtbl1_u8(v_uchar8[0],v_uchar8[9]) | vtbl1_u8(v_uchar8[1],v_uchar8[10]) | vtbl1_u8(v_uchar8[2],v_uchar8[11]);// uint8x8_t  v8_green_ch      = vtbl1_u8(v_load1,v_index_g1) | vtbl1_u8(v_load2,v_index_g2) | vtbl1_u8(v_load3,v_index_g3);
-            v_uchar8[8]= vtbl1_u8(v_uchar8[0],v_uchar8[12]) | vtbl1_u8(v_uchar8[1],v_uchar8[13]) | vtbl1_u8(v_uchar8[2],v_uchar8[14]);// uint8x8_t  v8_blue_ch       = vtbl1_u8(v_load1,v_index_b1) | vtbl1_u8(v_load2,v_index_b2) | vtbl1_u8(v_load3,v_index_b3);
-            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[6],v_uchar8[15]));//uint16x4_t v16_red_l        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_low));
-            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[6],v_uchar8[16]));//uint16x4_t v16_red_h        = vreinterpret_u16_u8(vtbl1_u8(v8_red_ch,v_index_high));
-            v_ushort8[0]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_red_cmb      = vcombine_u16(v16_red_l,v16_red_h);
-            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[7],v_uchar8[15]));//uint16x4_t v16_green_l      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_low));
-            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[7],v_uchar8[16]));//uint16x4_t v16_green_h      = vreinterpret_u16_u8(vtbl1_u8(v8_green_ch,v_index_high));
-            v_ushort8[1]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_green_cmb    = vcombine_u16(v16_green_l,v16_green_h);
-            v_ushort4[0]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[8],v_uchar8[15]));//uint16x4_t v16_blue_l       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_low));
-            v_ushort4[1]= vreinterpret_u16_u8(vtbl1_u8(v_uchar8[8],v_uchar8[16]));//uint16x4_t v16_blue_h       = vreinterpret_u16_u8(vtbl1_u8(v8_blue_ch,v_index_high));
-            v_ushort8[2]= vcombine_u16(v_ushort4[0],v_ushort4[1]);//uint16x8_t v16_blue_cmb     = vcombine_u16(v16_blue_l,v16_blue_h);
-            v_ushort8[0]= (v_ushort8[0]*I16_WEIGHT_RED_LIGHT+v_ushort8[1]*I16_WEIGHT_GREEN_LIGHT+v_ushort8[2]*I16_WEIGHT_BLUE_LIGHT)>>8;//uint16x8_t v16_gray         = (v16_red_cmb*I16_WEIGHT_RED_LIGHT+v16_green_cmb*I16_WEIGHT_GREEN_LIGHT+v16_blue_cmb*I16_WEIGHT_BLUE_LIGHT)>>8;
-            v_uchar8[0] = vreinterpret_u8_u16(vget_low_u16(v_ushort8[0]));//uint8x8_t  v8_gray_l        = vreinterpret_u8_u16(vget_low_u16(v16_gray));
-            v_uchar8[2] = vld1_u8(index_cmb1);
-            v_uchar8[6] = vtbl1_u8(v_uchar8[0],v_uchar8[2]);//uint8x8_t  v8_dst_1         = vtbl1_u8(v8_gray_l,v_index_cmb1);
-            vst1_u8(dst+j,v_uchar8[6]);//vst1_u8(dst+j,v8_dst_1);
-            v_uchar8[2] = vld1_u8(index_cmb2);
-            v_uchar8[6] = vld1_u8(index_cmb3);
-            v_uchar8[1] = vreinterpret_u8_u16(vget_high_u16(v_ushort8[0]));//uint8x8_t  v8_gray_h        = vreinterpret_u8_u16(vget_high_u16(v16_gray));
-            v_uchar8[7] = vtbl1_u8(v_uchar8[0],v_uchar8[2]) | vtbl1_u8(v_uchar8[1],v_uchar8[6]);//uint8x8_t  v8_dst_2         = vtbl1_u8(v8_gray_l,v_index_cmb2) | vtbl1_u8(v8_gray_h,v_index_cmb3);
-            vst1_u8(dst+j+8,v_uchar8[7]);//vst1_u8(dst+j+8,v8_dst_2);
-            v_uchar8[2] = vld1_u8(index_cmb4);
-            v_uchar8[8] = vtbl1_u8(v_uchar8[1],v_uchar8[2]);//uint8x8_t  v8_dst_3         = vtbl1_u8(v8_gray_h,v_index_cmb4);
-            vst1_u8(dst+j+16,v_uchar8[8]);//vst1_u8(dst+j+16,v8_dst_3);
-        }
-        src+=width*3;
-        dst+=width*3;
+        src+=width_pixel_bytes;
+        dst+=width_pixel_bytes;
     }
     #undef I16_WEIGHT_RED_LIGHT
     #undef I16_WEIGHT_GREEN_LIGHT
@@ -366,7 +324,7 @@ void do_RGB2GRAY_I16_NeonOP_Reg(unsigned char *src, unsigned char * dst, unsigne
     #undef NEON_D_SIMD_LENGTH_BYTES
 }
 #endif
-#define MAX_LOAD_LOCAL_BYTES (1024*800)
+#define MAX_LOAD_LOCAL_BYTES (1024*1024)
 void log_result(unsigned char * data_p,unsigned int start,unsigned int end, unsigned int step,char * tag)
 {
     for(unsigned int i=start;i<end;i+=step)
@@ -381,7 +339,7 @@ void log_result2(unsigned char * data_p1,unsigned char * data_p2,unsigned int st
         printf("[%s]: data1[%3d]=%3d ; data2[%3d]=%3d\n",tag,i,data_p1[i],i,data_p2[i]);
     }
 }
-void do_neon_test()
+void do_neon_rgb2gray()
 {
     struct timeval tpstart,tpend;
     static long timeuse_us=0,times=1;
@@ -394,16 +352,12 @@ void do_neon_test()
     unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes);
     gettimeofday(&tpstart,NULL);  
-    generateTable(GammaTBL,TABLE_SIZE);
     #ifdef  _USE_ARM_NEON_OPT_
-    do_RGB2GRAY_I16_Neon(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16_NeonVTBL3(testRGB888, dst,read_width, read_height);
     #else
-    do_RGB2GRAY_I16(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16(testRGB888, dst,read_width, read_height);
     #endif
-    memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
-    GammaCorrection(dst,read_width*read_height*read_pixel_bytes,GammaTBL);
     gettimeofday(&tpend,NULL); 
-    // log_result(dst,1000,50000,1500,"Neon");
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN NEON OP Latency = %lu US\n",timeuse_us/times++);
     save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
@@ -411,9 +365,9 @@ void do_neon_test()
     free(testRGB888);
     free_bmpRes();
 }
-void do_arm_test()
+void do_arm_rgb2gray()
 {
-    // #undef _USE_ARM_NEON_OPT_
+    #undef _USE_ARM_NEON_OPT_
     struct timeval tpstart,tpend;
     static long timeuse_us=0,times=1;
     unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
@@ -425,83 +379,92 @@ void do_arm_test()
     unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
     gettimeofday(&tpstart,NULL);  
-    generateTable(GammaTBL,TABLE_SIZE);
     #ifdef  _USE_ARM_NEON_OPT_
-    do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16_NeonVTBL3(testRGB888, dst,read_width, read_height);
     #else
-    do_RGB2GRAY_I16_NeonVTBL3(testRGB888,dst,read_width,read_height);
+    do_RGB2GRAY_I16(testRGB888, dst,read_width, read_height);
     #endif
-    memcpy(dst,testRGB888,read_width*read_height*read_pixel_bytes);
-    GammaCorrection(dst,read_width*read_height*read_pixel_bytes,GammaTBL);
     gettimeofday(&tpend,NULL); 
-    // log_result(dst,1000,50000,1500,"Arm");
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN ARM  OP Latency = %lu US\n",timeuse_us/times++);
     save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
     free_bmpRes();
-    // #define _USE_ARM_NEON_OPT_
+    #define _USE_ARM_NEON_OPT_
 }
-void test()
+void do_neon_test()
 {
-    unsigned char table[32];
-    unsigned char index[8]={0,1,2,3,4,5,6,7};
-    unsigned char result[8];
-    for(int i=0;i<32;i+=1)
-    {
-        table[i] = i;
-    }
-    uint8x8x4_t v_table = vld4_u8(table);
-    // uint8x8_t v_index=vld1_u8(index);
-    // uint8x8_t v_result = vtbl4_u8(v_table,v_index);
-    vst1_u8(result,v_table.val[0]);
-    for(int i=0;i<8;i++)
-    {
-        printf("result[0][%d]=%d\n",i,result[i]);
-    }
-    vst1_u8(result,v_table.val[1]);
-    for(int i=0;i<8;i++)
-    {
-        printf("result[1][%d]=%d\n",i,result[i]);
-    }
-    vst1_u8(result,v_table.val[2]);
-    for(int i=0;i<8;i++)
-    {
-        printf("result[2][%d]=%d\n",i,result[i]);
-    }
-    vst1_u8(result,v_table.val[3]);
-    for(int i=0;i<8;i++)
-    {
-        printf("result[3][%d]=%d\n",i,result[i]);
-    }
-    for(int i=0;i<32;i++)
-    {
-        printf("table[%d]=%d\n",i,table[i]);
-    }
-    
+    struct timeval tpstart,tpend;
+    static long timeuse_us=0,times=1;
+    unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
+    bitmap_file_header bmpFileHeader;
+    bitmap_info_header bmpInfoHeader;
+    readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
+    unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
+    unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes);
+    unsigned char *GammaTBL= (unsigned char*)malloc(TABLE_SIZE);
+    gettimeofday(&tpstart,NULL);  
+    generateTable(GammaTBL,TABLE_SIZE);
+    #ifdef  _USE_ARM_NEON_OPT_
+    generateTable(GammaTBL,TABLE_SIZE);
+    GammaCorrection_Neon(testRGB888,dst,read_width*read_height*read_pixel_bytes,GammaTBL);
+    #else
+    generateTable(GammaTBL,TABLE_SIZE);
+    GammaCorrection(testRGB888,dst,read_width*read_height*read_pixel_bytes,GammaTBL);
+    #endif
+    gettimeofday(&tpend,NULL); 
+    timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
+    printf("MEAN NEON OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    free(dst);
+    free(GammaTBL);
+    free(testRGB888);
+    free_bmpRes();
 }
-// unsigned char input[256];
-// unsigned char output[256];
-// void gammaTest()
-// {
-//    generateTable(GammaTBL,TABLE_SIZE);
-//    for(unsigned int i=0;i<256;i++)
-//    {
-//        input[i]=i;
-//        output[i]=i;
-//    }
-//    GammaCorrection(output,256,GammaTBL);
-//    log_result2(input,output,0,256,1,"Gamma");
-// }
+void do_arm_test()
+{
+    #undef _USE_ARM_NEON_OPT_
+    struct timeval tpstart,tpend;
+    static long timeuse_us=0,times=1;
+    unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
+    bitmap_file_header bmpFileHeader;
+    bitmap_info_header bmpInfoHeader;
+    readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
+    unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
+    unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
+    unsigned char *GammaTBL= (unsigned char*)malloc(TABLE_SIZE);
+    gettimeofday(&tpstart,NULL);  
+    #ifdef  _USE_ARM_NEON_OPT_
+    generateTable(GammaTBL,TABLE_SIZE);
+    GammaCorrection(testRGB888,dst,read_width*read_height*read_pixel_bytes,GammaTBL);
+    #else
+    generateTable(GammaTBL,TABLE_SIZE);
+    GammaCorrection(testRGB888,dst,read_width*read_height*read_pixel_bytes,GammaTBL);
+    #endif
+    gettimeofday(&tpend,NULL); 
+    timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
+    printf("MEAN ARM  OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    free(dst);
+    free(GammaTBL);
+    free(testRGB888);
+    free_bmpRes();
+    #define _USE_ARM_NEON_OPT_
+}
 int main()
 {
-    // gammaTest();
-    // test();
-    for(int i=0;i<1;i++){
-        do_neon_test();
-        do_arm_test();
+    for(int i=0;i<128;i++){
+        // do_neon_test();
+        // do_arm_test();
+        do_neon_rgb2gray();
+        do_arm_rgb2gray();
     }
+    // test();
     return 0;
 }
 void logMenu()

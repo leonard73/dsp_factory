@@ -1,4 +1,4 @@
-DEMO_PATH=${DSP_FACTORY_ROOT_PATH}/Examples/Tutorial1
+DEMO_PATH=${DSP_FACTORY_ROOT_PATH}/Examples/Tutorial1_MEMCPY
 sh ${NDK_COMPILE_SCRIPT_PATH}/clean.sh
 sh ${NDK_COMPILE_SCRIPT_PATH}/build.sh
 adb devices
