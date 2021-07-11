@@ -40,20 +40,21 @@ void test()
 {
     #define TEST_ELEM_BYTES  (256)
     #define SIMD_Q_LEN_BYTES (16)
+    #define SIMD_D_LEN_BYTES (8)
     uint8_t BGR888_src[TEST_ELEM_BYTES]={1,2,3,4,5,6,7,8,9,10,11,12,13,
                         14,15,16,17,18,19,20,21,22,23,24};
-    uint8_t BGR888_dst[TEST_ELEM_BYTES];
-    uint8_t adder_array[SIMD_Q_LEN_BYTES]={240,240,240,240,240,240,240,240,240,240,240,240,240,240,240,240};
-    uint8x16_t v8_adder = vld1q_u8(adder_array); 
-    for(int i=0;i<TEST_ELEM_BYTES;i+=SIMD_Q_LEN_BYTES)
+    uint16_t BGRhex3_dst[TEST_ELEM_BYTES];
+    uint8_t adder_array[SIMD_D_LEN_BYTES]={240,240,240,240,240,240,240,240};
+    uint8x8_t v8_adder = vld1_u8(adder_array); 
+    for(int i=0;i<TEST_ELEM_BYTES;i+=SIMD_D_LEN_BYTES)
     {
-        uint8x16_t v8_load   = vld1q_u8(BGR888_src+i);
-        uint8x16_t v8_result = vaddq_u8(v8_load,v8_adder);
-        vst1q_u8(BGR888_dst+i,v8_result);
+        uint8x8_t  v8_load   = vld1_u8(BGR888_src+i);
+        uint16x8_t v16_result = vaddl_u8(v8_load,v8_adder);
+        vst1q_u16(&BGRhex3_dst[i],v16_result);
     }
     for(int i=0;i<TEST_ELEM_BYTES;i++)
     {
-        printf("src[%3d] = %3d; dst[%3d] = %3d\n",i,BGR888_src[i],i,BGR888_dst[i]);
+        printf("src[%3d] = %3d; dst[%3d] = %3d\n",i,BGR888_src[i],i,BGRhex3_dst[i]);
     }
 }
 void GammaCorrection_Neon(unsigned char *src,unsigned char *dst,unsigned int width,unsigned char * table)
@@ -458,13 +459,13 @@ void do_arm_test()
 }
 int main()
 {
-    for(int i=0;i<128;i++){
-        // do_neon_test();
-        // do_arm_test();
-        do_neon_rgb2gray();
-        do_arm_rgb2gray();
-    }
-    // test();
+    // for(int i=0;i<128;i++){
+    //     // do_neon_test();
+    //     // do_arm_test();
+    //     do_neon_rgb2gray();
+    //     do_arm_rgb2gray();
+    // }
+    test();
     return 0;
 }
 void logMenu()

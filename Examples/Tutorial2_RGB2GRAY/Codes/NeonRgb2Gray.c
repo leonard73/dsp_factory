@@ -7,7 +7,9 @@
 #include <math.h>
 #ifdef PLATFORM_ANDROID_ARM64
 #define TEST_DATA_PATH "/data/local/tmp/splash.bmp"
-#define TEST_OUT_ARM_DATA_PATH "/data/local/tmp/splash_out_cpu.bmp"
+#define TEST_OUT_ARM_DATA_PATH_I16 "/data/local/tmp/splash_out_cpu_I16.bmp"
+#define TEST_OUT_ARM_DATA_PATH_I32 "/data/local/tmp/splash_out_cpu_I32.bmp"
+#define TEST_OUT_ARM_DATA_PATH_F32 "/data/local/tmp/splash_out_cpu_F32.bmp"
 #define TEST_OUT_NEON_DATA_PATH "/data/local/tmp/splash_out_neon.bmp"
 #elif defined (PLATFORM_LINUX_ARM64)
 #define TEST_DATA_PATH "tutorial1_data.jpg"
@@ -15,7 +17,7 @@
 #define TEST_OUT_NEON_DATA_PATH "tutorial1_data_outNEON.jpg"
 #endif
 #define TEST_DATA_LENGTH_BYTES (116536)
-#define TEST_TIMES_REPLICATE 1024
+#define TEST_TIMES_REPLICATE 128
 void logMenu();
 void do_setR255(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
 {
@@ -159,7 +161,63 @@ void do_neon_rgb2gray()
     free(testRGB888);
     free_bmpRes();
 }
-void do_arm_rgb2gray()
+void do_arm_rgb2grayI32()
+{
+    #undef _USE_ARM_NEON_OPT_
+    struct timeval tpstart,tpend;
+    static long timeuse_us=0,times=1;
+    unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
+    bitmap_file_header bmpFileHeader;
+    bitmap_info_header bmpInfoHeader;
+    readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
+    unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
+    unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
+    gettimeofday(&tpstart,NULL);  
+    #ifdef  _USE_ARM_NEON_OPT_
+    do_RGB2GRAY_I16_Neon(testRGB888, dst,read_width, read_height);
+    #else
+    do_RGB2GRAY_I32(testRGB888, dst,read_width, read_height);
+    #endif
+    gettimeofday(&tpend,NULL); 
+    timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
+    printf("MEAN ARM I32 OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH_I32,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    free(dst);
+    free(testRGB888);
+    free_bmpRes();
+    #define _USE_ARM_NEON_OPT_
+}
+void do_arm_rgb2grayF32()
+{
+    #undef _USE_ARM_NEON_OPT_
+    struct timeval tpstart,tpend;
+    static long timeuse_us=0,times=1;
+    unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
+    bitmap_file_header bmpFileHeader;
+    bitmap_info_header bmpInfoHeader;
+    readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
+    unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
+    unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
+    gettimeofday(&tpstart,NULL);  
+    #ifdef  _USE_ARM_NEON_OPT_
+    do_RGB2GRAY_I16_Neon(testRGB888, dst,read_width, read_height);
+    #else
+    do_RGB2GRAY_F32(testRGB888, dst,read_width, read_height);
+    #endif
+    gettimeofday(&tpend,NULL); 
+    timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
+    printf("MEAN ARM F32 OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH_F32,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    free(dst);
+    free(testRGB888);
+    free_bmpRes();
+    #define _USE_ARM_NEON_OPT_
+}
+void do_arm_rgb2grayI16()
 {
     #undef _USE_ARM_NEON_OPT_
     struct timeval tpstart,tpend;
@@ -180,8 +238,8 @@ void do_arm_rgb2gray()
     #endif
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
-    printf("MEAN ARM  OP Latency = %lu US\n",timeuse_us/times++);
-    save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    printf("MEAN ARM I16 OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_ARM_DATA_PATH_I16,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
     free_bmpRes();
@@ -192,7 +250,9 @@ int main()
     for(int i=0;i<TEST_TIMES_REPLICATE;i++)
     {
         do_neon_rgb2gray();
-        do_arm_rgb2gray();
+        do_arm_rgb2grayF32();
+        do_arm_rgb2grayI32();
+        do_arm_rgb2grayI16();
     }
     return 0;
 }
