@@ -3,6 +3,8 @@
 export DSP_FACTORY_ROOT_PATH=$(pwd)
 #set LIBFORMAT DRIVER PATH
 export LIBFORMAT_DRIVER_PATH=$(pwd)/libFormat
+#set EIGEN_PATH
+export EIGEN_PATH=$(pwd)/thirdParty
 #Set your NDK Install Path
 export NDK_ROOT_PATH=$ANDROID_NDK
 #Set TARGET_COMPILE_PLATFORM

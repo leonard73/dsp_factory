@@ -16,6 +16,7 @@
 #define TEST_OUT_ARM_DATA_PATH "tutorial1_data_outArm.jpg"
 #define TEST_OUT_NEON_DATA_PATH "tutorial1_data_outNEON.jpg"
 #endif
+#define _USE_ARM_NEON_OPT_
 #define TEST_DATA_LENGTH_BYTES (116536)
 #define TEST_TIMES_REPLICATE 128
 void logMenu();
@@ -262,7 +263,7 @@ void logMenu()
     printf("############################################################################\n");
     printf("##############         This is DSPFACTORY T2 TEST          #################\n");
     printf("##############         INPUT:  A 452x302 RGB BMP FILE      #################\n");
-    printf("##############         OUTPUT: LinearTransfrom Result      #################\n");
+    printf("##############         OUTPUT: Rgb2Gray Result             #################\n");
     printf("##############         AIM: VTBL ISA Implementation        #################\n");
     printf("##############         This is DSPFACTORY T2 TEST          #################\n");
     printf("############################################################################\n");

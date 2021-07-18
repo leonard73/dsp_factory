@@ -36,6 +36,21 @@ unsigned char step32_array[8]     ={32,32,32,32,32,32,32,32};
 unsigned char mask_init_array[8]  ={0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
 unsigned char array_const31[8]    ={31,31,31,31,31,31,31,31};
 unsigned char array_ones[8]       ={1,1,1,1,1,1,1,1}; 
+void test_vload()
+{
+    #define TEST_ELEM_BYTES  (24)
+    #define SIMD_Q_LEN_BYTES (16)
+    #define SIMD_D_LEN_BYTES (8)
+    uint8_t      dst_array[8];
+    uint8_t      src_array[24]={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24};
+    uint8_t      index_array[8]={4,7,5,2,10,28,5,32};
+    uint8x8_t    v8_result    = vtbl3_u8(vld3_u8(src_array),vld1_u8(index_array));
+    vst1_u8(dst_array,v8_result);
+    for(int i=0;i<8;i++)
+    {
+        printf("dst[%3d] = %3d\n",i,dst_array[i]);
+    }
+}
 void test()
 {
     #define TEST_ELEM_BYTES  (256)
@@ -465,7 +480,8 @@ int main()
     //     do_neon_rgb2gray();
     //     do_arm_rgb2gray();
     // }
-    test();
+    // test();
+    test_vload();
     return 0;
 }
 void logMenu()
