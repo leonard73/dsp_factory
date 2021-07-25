@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/emptyProj.dir/src/emptyProj.cpp.o  -o emptyProj 

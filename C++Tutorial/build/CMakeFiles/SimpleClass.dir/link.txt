@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/SimpleClass.dir/src/SimpleClass.cpp.o  -o SimpleClass 

@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/logClass.dir/src/logClass.cpp.o  -o logClass 
