@@ -10,7 +10,8 @@
 #define TEST_OUT_ARM_DATA_PATH_I16 "/data/local/tmp/splash_out_cpu_I16.bmp"
 #define TEST_OUT_ARM_DATA_PATH_I32 "/data/local/tmp/splash_out_cpu_I32.bmp"
 #define TEST_OUT_ARM_DATA_PATH_F32 "/data/local/tmp/splash_out_cpu_F32.bmp"
-#define TEST_OUT_NEON_DATA_PATH "/data/local/tmp/splash_out_neon.bmp"
+#define TEST_OUT_NEON_I8_DATA_PATH "/data/local/tmp/splash_out_neon_I8.bmp"
+#define TEST_OUT_NEON_I16_DATA_PATH "/data/local/tmp/splash_out_neon_I16.bmp"
 #elif defined (PLATFORM_LINUX_ARM64)
 #define TEST_DATA_PATH "tutorial1_data.jpg"
 #define TEST_OUT_ARM_DATA_PATH "tutorial1_data_outArm.jpg"
@@ -189,7 +190,7 @@ void do_neon_rgb2grayI8()
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN NEON I8 OP Latency = %lu US\n",timeuse_us/times++);
-    save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    save_RawRGB_bmpFile(TEST_OUT_NEON_I8_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
     free_bmpRes();
@@ -215,7 +216,7 @@ void do_neon_rgb2grayI16()
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
     printf("MEAN NEON I16 OP Latency = %lu US\n",timeuse_us/times++);
-    save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    save_RawRGB_bmpFile(TEST_OUT_NEON_I16_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
     free_bmpRes();
