@@ -61,7 +61,7 @@ typedef struct MonMatrix_UShort_t
 }MonMatrix_UShort;
 int main()
 {
-    LOG_MESSAGE("1.","allow immediate conversion ");
+    LOG_MESSAGE("Create Struct and use Operator"," ");
     MonMatrix_UShort matrix_obj1(3,3);
     MonMatrix_UShort matrix_obj2(3,3);
     for(int i=0;i<9;i++)
