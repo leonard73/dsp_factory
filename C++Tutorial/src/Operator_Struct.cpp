@@ -36,7 +36,39 @@ typedef struct MonMatrix_UShort_t
             {
                 retMatrix.data[i] = data[i] + secondMatrix.data[i];
             } 
-            return MonMatrix_UShort_t(retMatrix.rows,retMatrix.cols,retMatrix.data);;
+            return MonMatrix_UShort_t(retMatrix.rows,retMatrix.cols,retMatrix.data);
+        }
+    }
+    MonMatrix_UShort_t MINUS(const MonMatrix_UShort_t & secondMatrix)
+    {
+        if(secondMatrix.cols!=cols || secondMatrix.rows!=rows) 
+        {
+            return MonMatrix_UShort_t(rows,cols,data);
+        }
+        else
+        {
+            MonMatrix_UShort_t retMatrix(rows,cols,data);
+            for(unsigned int i=0;i<rows*cols;i++)
+            {
+                retMatrix.data[i] = data[i] - secondMatrix.data[i];
+            } 
+            return MonMatrix_UShort_t(retMatrix.rows,retMatrix.cols,retMatrix.data);
+        }
+    }
+    MonMatrix_UShort_t MUL(const MonMatrix_UShort_t & secondMatrix)
+    {
+        if(secondMatrix.cols!=cols || secondMatrix.rows!=rows) 
+        {
+            return MonMatrix_UShort_t(rows,cols,data);
+        }
+        else
+        {
+            MonMatrix_UShort_t retMatrix(rows,cols,data);
+            for(unsigned int i=0;i<rows*cols;i++)
+            {
+                retMatrix.data[i] = data[i] * secondMatrix.data[i];
+            } 
+            return MonMatrix_UShort_t(retMatrix.rows,retMatrix.cols,retMatrix.data);
         }
     }
     void SHOW_2D()
@@ -58,6 +90,14 @@ typedef struct MonMatrix_UShort_t
     {
         return (*this).ADD(secondMatrix);
     }
+    MonMatrix_UShort_t operator-(const MonMatrix_UShort_t & secondMatrix)
+    {
+        return (*this).MINUS(secondMatrix);
+    }
+    MonMatrix_UShort_t operator*(const MonMatrix_UShort_t & secondMatrix)
+    {
+        return (*this).MUL(secondMatrix);
+    }
 }MonMatrix_UShort;
 int main()
 {
@@ -67,9 +107,9 @@ int main()
     for(int i=0;i<9;i++)
     {
         matrix_obj1.data[i] = i*i+2*i+1;
-        matrix_obj2.data[i] = i*i+2*i+1;
+        matrix_obj2.data[i] = 4*i-2;
     }
-    MonMatrix_UShort matrix_obj3 = matrix_obj1+matrix_obj2;
+    MonMatrix_UShort matrix_obj3 = (matrix_obj1+matrix_obj2)*matrix_obj1-matrix_obj2;
     matrix_obj1.SHOW_2D();
     matrix_obj2.SHOW_2D();
     matrix_obj3.SHOW_2D();
