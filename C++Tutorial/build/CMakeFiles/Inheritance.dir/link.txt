@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/Inheritance.dir/src/Inheritance.cpp.o  -o Inheritance 

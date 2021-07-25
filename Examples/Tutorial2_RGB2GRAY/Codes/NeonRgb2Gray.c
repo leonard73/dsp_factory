@@ -134,9 +134,67 @@ void do_RGB2GRAY_I16_Neon(unsigned char *src, unsigned char * dst, unsigned int 
     #undef I16_WEIGHT_BLUE_LIGHT
     #undef NEON_D_SIMD_LENGTH_BYTES
 }
+void do_RGB2GRAY_I8_Neon(unsigned char *src, unsigned char * dst, unsigned int width, unsigned int height)
+{
+    #define I8_WEIGHT_RED_LIGHT      (2) //divide 4 coff 0.25 2^2
+    #define I8_WEIGHT_GREEN_LIGHT    (1) //divide 2 coff 0.5  2^1
+    #define I8_WEIGHT_BLUE_LIGHT     (2) //divide 4 coff 0.25 2^2
+    #define NEON_Q_SIMD_LENGTH_BYTES  (16)
+    unsigned int width_pixel_bytes = width*3;
+    unsigned int loop_step_bytes   = NEON_Q_SIMD_LENGTH_BYTES*3;
+    uint8x16x3_t v_store_rgb;
+    uint8x16x3_t v_load_rgb ;
+    uint8x16_t   v8_result;
+    for(unsigned int i=0;i<height;i++)
+    {
+        for(unsigned int j=0;j<width_pixel_bytes;j+=loop_step_bytes)
+        {
+            v_load_rgb         = vld3q_u8(src+j);
+            v8_result          = vshrq_n_u8(v_load_rgb.val[0],I8_WEIGHT_RED_LIGHT)
+                                +vshrq_n_u8(v_load_rgb.val[1],I8_WEIGHT_GREEN_LIGHT)
+                                +vshrq_n_u8(v_load_rgb.val[2],I8_WEIGHT_BLUE_LIGHT);
+            v_store_rgb.val[0] = v8_result;
+            v_store_rgb.val[1] = v8_result;
+            v_store_rgb.val[2] = v8_result;
+            vst3q_u8(dst+j,v_store_rgb);
+        }
+        src+=width_pixel_bytes;
+        dst+=width_pixel_bytes;
+    }
+    #undef I8_WEIGHT_RED_LIGHT
+    #undef I8_WEIGHT_GREEN_LIGHT
+    #undef I8_WEIGHT_BLUE_LIGHT
+    #undef NEON_Q_SIMD_LENGTH_BYTES
+}
 #endif
 #define MAX_LOAD_LOCAL_BYTES (1024*1024)
-void do_neon_rgb2gray()
+void do_neon_rgb2grayI8()
+{
+    struct timeval tpstart,tpend;
+    static long timeuse_us=0,times=1;
+    unsigned char * testRGB888 = malloc(MAX_LOAD_LOCAL_BYTES);
+    bitmap_file_header bmpFileHeader;
+    bitmap_info_header bmpInfoHeader;
+    readBMP(TEST_DATA_PATH,&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    unsigned int read_width       = bmpInfoHeader.bmpInfo_width;
+    unsigned int read_height      = bmpInfoHeader.bmpInfo_height;
+    unsigned int read_pixel_bytes = (bmpInfoHeader.bmpInfo_bitcount)>>BITCOUNT_TO_BYTE_SHIFT;
+    unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes);
+    gettimeofday(&tpstart,NULL);  
+    #ifdef  _USE_ARM_NEON_OPT_
+    do_RGB2GRAY_I8_Neon(testRGB888, dst,read_width, read_height);
+    #else
+    do_RGB2GRAY_I16(testRGB888, dst,read_width, read_height);
+    #endif
+    gettimeofday(&tpend,NULL); 
+    timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
+    printf("MEAN NEON I8 OP Latency = %lu US\n",timeuse_us/times++);
+    save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
+    free(dst);
+    free(testRGB888);
+    free_bmpRes();
+}
+void do_neon_rgb2grayI16()
 {
     struct timeval tpstart,tpend;
     static long timeuse_us=0,times=1;
@@ -156,7 +214,7 @@ void do_neon_rgb2gray()
     #endif
     gettimeofday(&tpend,NULL); 
     timeuse_us+=1000000*(tpend.tv_sec-tpstart.tv_sec) + tpend.tv_usec-tpstart.tv_usec; 
-    printf("MEAN NEON OP Latency = %lu US\n",timeuse_us/times++);
+    printf("MEAN NEON I16 OP Latency = %lu US\n",timeuse_us/times++);
     save_RawRGB_bmpFile(TEST_OUT_NEON_DATA_PATH,dst,read_width*read_height*read_pixel_bytes,read_width,read_height);
     free(dst);
     free(testRGB888);
@@ -177,7 +235,7 @@ void do_arm_rgb2grayI32()
     unsigned char * dst = (unsigned char*)malloc(read_width*read_height*read_pixel_bytes); 
     gettimeofday(&tpstart,NULL);  
     #ifdef  _USE_ARM_NEON_OPT_
-    do_RGB2GRAY_I16_Neon(testRGB888, dst,read_width, read_height);
+    do_RGB2GRAY_I8_Neon(testRGB888, dst,read_width, read_height);
     #else
     do_RGB2GRAY_I32(testRGB888, dst,read_width, read_height);
     #endif
@@ -250,7 +308,8 @@ int main()
 {
     for(int i=0;i<TEST_TIMES_REPLICATE;i++)
     {
-        do_neon_rgb2gray();
+        do_neon_rgb2grayI8();
+        do_neon_rgb2grayI16();
         do_arm_rgb2grayF32();
         do_arm_rgb2grayI32();
         do_arm_rgb2grayI16();
