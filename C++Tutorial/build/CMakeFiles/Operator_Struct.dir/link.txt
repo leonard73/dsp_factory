@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/Operator_Struct.dir/src/Operator_Struct.cpp.o  -o Operator_Struct 
