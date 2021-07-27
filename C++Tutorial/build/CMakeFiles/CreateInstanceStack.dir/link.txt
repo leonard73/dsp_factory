@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/CreateInstanceStack.dir/src/CreateInstanceStack.cpp.o  -o CreateInstanceStack 
