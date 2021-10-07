@@ -100,7 +100,7 @@ void camera_init(camera_t* p_camera,unsigned int v4l_format)
 		if (buffer.length > buf_max)
 			buf_max = buffer.length;
 		
-		printf("count:%d, length:%d\n", i, buffer.length);
+		printf("count:%ld, length:%d\n", i, buffer.length);
 		p_camera->buffers[i].length = buffer.length;
 		p_camera->buffers[i].start = mmap(NULL, buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, p_camera->fd, buffer.m.offset);
 		if (NULL == p_camera->buffers[i].start)
