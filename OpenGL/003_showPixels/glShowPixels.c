@@ -84,6 +84,8 @@ void reshape(int w, int h)
     gluOrtho2D(0.0,(GLdouble) w, 0.0,(GLdouble) h);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    update_zoom_ratio();
+    glPixelZoom(zoom_w_ratio,zoom_h_ratio);
 }
 
 int main(int argc, char *argv[])
