@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <bmp.h>
 #include <uvc_cam_sdk.h>
-#define TEST_PIXEL_WIDTH  (640)
+#define TEST_PIXEL_WIDTH  (1280)
 #define TEST_PIXEL_HEIGHT (480)
 #define TEST_PIXEL_NUM    (TEST_PIXEL_WIDTH*TEST_PIXEL_HEIGHT)
 GLubyte pixel_array[TEST_PIXEL_NUM*3];
@@ -54,10 +54,7 @@ void loadStreamYuyv2RGBA(uint8_t* yuyv, uint32_t width, uint32_t height)
 	int i = 0, j = 0;
 	int32_t y0 = 0, y1 = 0, u = 0,  v = 0;
 	int index = 0;
-    int y_offset = width;
-    int u_offset = width*height;
-    int v_offset = width*height/4;
-    	for (i = 0; i < height; ++i)
+    for (i = 0; i < height; ++i)
 	{
 		for (j = 0; j < width; j += 2)
 		{
@@ -76,6 +73,23 @@ void loadStreamYuyv2RGBA(uint8_t* yuyv, uint32_t width, uint32_t height)
 		}
 	}
 }
+void loadStreamY82RGBA(uint8_t* yuyv, uint32_t width, uint32_t height)
+{
+	int i = 0, j = 0;
+	int32_t y = 0;
+	int index = 0;
+    for (i = 0; i < height; ++i)
+	{
+		for (j = 0; j < width; j +=1)
+		{
+			index = i * width + j;
+			y = yuyv[index];			
+			pixel_array[index*3 + 0] = minmax(0, y, 255);
+			pixel_array[index*3 + 1] = minmax(0, y, 255);
+			pixel_array[index*3 + 2] = minmax(0, y, 255);
+		}
+	}
+}
 void init(void)
 {
     glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -83,14 +97,14 @@ void init(void)
     init_pixels();
     load_bmp_data();
     glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-    int ret=uvc_camera_sdk_init("/dev/video0",640,480,uvc_camera_sdk_stream_yuyv);
+    int ret=uvc_camera_sdk_init("/dev/video0",TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT,uvc_camera_sdk_stream_yuyv);
 	uvc_camera_sdk_stream_start(1000212);
     return;
 }
 
 void display(void)
 {
-    static int captured_id=0;
+    
         glClear(GL_COLOR_BUFFER_BIT);
         glRasterPos2f(0,0);
         glDrawPixels(TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT,GL_RGB,GL_UNSIGNED_BYTE,pixel_array);
@@ -116,10 +130,13 @@ void reshape(int w, int h)
 
 void idle(void)
 {
+    static int captured_id=0;
         camera_t * captured_p=uvc_camera_sdk_stream_captured_once();
-	    // printf("ID[%d]: W=%d; H=%d; buf_length=%d; mean_pixel=%d\n",captured_id++,captured_p->width,captured_p->height,captured_p->head.length,meanOfBuffer(captured_p->head.start,captured_p->head.length));
-        loadStreamYuyv2RGBA(captured_p->head.start,TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT); 
+	    printf("ID[%d]: W=%d; H=%d; buf_length=%d; mean_pixel=%d\n",captured_id++,captured_p->width,captured_p->height,captured_p->head.length,meanOfBuffer(captured_p->head.start,captured_p->head.length));
+        loadStreamYuyv2RGBA(captured_p->head.start,TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT);
+        // loadStreamY82RGBA(captured_p->head.start,TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT);
         glutPostRedisplay();
+        usleep(10000);
 }
 int main(int argc, char *argv[])
 {

@@ -224,6 +224,7 @@ int uvc_camera_sdk_init(const char * device_path,uint32_t pixel_width,uint32_t p
 	{
 		case uvc_camera_sdk_stream_yuyv:camera_init(p_camera_global,V4L2_PIX_FMT_YUYV);break;
 		case uvc_camera_sdk_stream_mpeg:camera_init(p_camera_global,V4L2_PIX_FMT_MPEG);break;
+		case uvc_camera_sdk_stream_y8:camera_init(p_camera_global,V4L2_PIX_FMT_GREY);break;
 		default:camera_init(p_camera_global,V4L2_PIX_FMT_YUYV);break;
 	}
 	printf("uvc_camera_sdk_init successfully!\n");
@@ -251,4 +252,15 @@ void uvc_camera_sdk_stream_stop()
 	camera_stop(p_camera_global);
 	camera_release(p_camera_global);
 	camera_close(p_camera_global);
+}
+uint8_t meanOfBuffer(uint8_t * pixels_p, uint32_t num)
+{
+	uint8_t mean_value=0;
+	uint32_t sum_total=0;
+	for(uint32_t i=0;i<num;++i)
+	{
+		sum_total += pixels_p[i];
+	}
+	mean_value = num>0 ? sum_total/num : 0;
+	return mean_value;
 }

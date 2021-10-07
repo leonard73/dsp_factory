@@ -27,10 +27,12 @@ typedef struct {
 enum uvc_camera_sdk_format_t
 {
 	uvc_camera_sdk_stream_yuyv=0,
-	uvc_camera_sdk_stream_mpeg=1
+	uvc_camera_sdk_stream_mpeg=1,
+	uvc_camera_sdk_stream_y8=2
 }uvc_camera_sdk_format;
 int  uvc_camera_sdk_init(const char * device_path,uint32_t pixel_width,uint32_t pixel_height,int format);
 void uvc_camera_sdk_stream_start(uint64_t timeout_microSeconds);
 camera_t * uvc_camera_sdk_stream_captured_once();
 void uvc_camera_sdk_stream_stop();
+uint8_t meanOfBuffer(uint8_t * pixels_p, uint32_t num);
 #endif // CAMERA_H_
