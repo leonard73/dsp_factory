@@ -1,8 +1,8 @@
 #include <GL/glut.h>
 #include <stdio.h>
 #include <bmp.h>
-#define TEST_PIXEL_WIDTH  (640)
-#define TEST_PIXEL_HEIGHT (800)
+#define TEST_PIXEL_WIDTH  (452)
+#define TEST_PIXEL_HEIGHT (303)
 #define TEST_PIXEL_NUM    (TEST_PIXEL_WIDTH*TEST_PIXEL_HEIGHT)
 GLubyte pixel_array[TEST_PIXEL_NUM*3];
 GLint width=640,height=800;
@@ -17,7 +17,7 @@ void load_bmp_data()
     testRGB888 = malloc(TEST_PIXEL_NUM*3);
     bitmap_file_header bmpFileHeader;
     bitmap_info_header bmpInfoHeader;
-    readBMP("test.bmp",&bmpFileHeader,&bmpInfoHeader,testRGB888);
+    readBMP("splash.bmp",&bmpFileHeader,&bmpInfoHeader,testRGB888);
     for(int i=0;i<TEST_PIXEL_NUM*3;i++)
     {
         pixel_array[i] = testRGB888[i];
@@ -26,8 +26,8 @@ void load_bmp_data()
 /*********BMP********/
 void update_zoom_ratio()
 {
-    static GLint record_width=640;
-    static GLint record_height=800;
+    static GLint record_width=452;
+    static GLint record_height=303;
     zoom_w_ratio = (float)width/(float)record_width;
     zoom_h_ratio = (float)height/(float)record_height;
     // record_width=width;
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
     glutInitWindowPosition(50, 50);
-    glutInitWindowSize(640, 800);
+    glutInitWindowSize(452, 303);
     glutCreateWindow("OpenGL HelloWorld");
     init();
     glutDisplayFunc(display);
