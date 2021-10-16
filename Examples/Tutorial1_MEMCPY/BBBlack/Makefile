@@ -1,4 +1,4 @@
-DEMO_PATH:=${DSP_FACTORY_ROOT_PATH}/Examples/Tutorial1
+DEMO_PATH:=${DSP_FACTORY_ROOT_PATH}/Examples/Tutorial1_MEMCPY
 cc:=gcc  -std=c99 -mfpu=neon-vfpv4 -mfloat-abi=hard -DPLATFORM_LINUX_ARM64
 srcs:=${DEMO_PATH}/Codes/NeonLoadStore.c
 exe:=dspFactoryT1_NeonLDTest
