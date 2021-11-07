@@ -82,6 +82,7 @@ void formatSDK::bmpCtl::save_bmp_file(const char * saveBmpPath,BMP_DATA * saveBm
     saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_important_clr=0;
     saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_compression=0;
     saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_planes=1;
+    saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_used_clr=0;
     saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_xpels_per_meter=DEFAULT_PIXELS_X_METER;
     saveBmpData->bmp_header_struct.bmp_info_struct.bmpInfo_ypels_per_meter=DEFAULT_PIXELS_Y_METER;
     //save to target path
