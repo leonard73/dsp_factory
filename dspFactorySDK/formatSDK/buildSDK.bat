@@ -1,8 +1,10 @@
 @echo off
-set compileToolsDir=..\..\Tools
-set x64_g++=%compileToolsDir%\x64\mingw64\bin\g++
-set x64_gcc=%compileToolsDir%\x64\mingw64\bin\gcc
-set x64_ar=%compileToolsDir%\x64\mingw64\bin\ar
+set compileToolsDir=..\..\Tools\x64\mingw64\bin
+set Path=%~dp0%compileToolsDir%;Path
+set path=%~dp0%compileToolsDir%;path
+set x64_g++=g++
+set x64_gcc=gcc
+set x64_ar=ar
 set formatSource_files=source\formatSDK.cpp
 set source_files=%formatSource_files%
 set source_files=%source_files% %demoSource_files%
