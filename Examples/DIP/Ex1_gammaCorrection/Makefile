@@ -3,8 +3,9 @@ common_path:=../common
 cc:=g++
 src:=demo.cpp
 src+=$(common_path)/source/glController.cpp
-include_dir:=$(common_path)/include
-flag:=-lGL -lGLU -lglut -I$(include_dir)
+src+=$(common_path)/source/uvc_cam_sdk.cpp
+include_dir:=$(common_path)/include	
+flag:=-lGL -lGLU -lglut -I$(include_dir)  -fpermissive -lpthread
 exefile:=gammaCorrection
 build:
 		$(cc) -o $(exefile) $(src) $(flag)

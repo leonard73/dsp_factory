@@ -1,4 +1,4 @@
-#include "uvc_cam_sdk.h"
+#include "../include/uvc_cam_sdk.h"
 camera_t* camera_open(const char *device_path, uint32_t width, uint32_t height);
 void camera_init(camera_t* p_camera,unsigned int v4l_format);
 void camera_start(camera_t* p_camera);

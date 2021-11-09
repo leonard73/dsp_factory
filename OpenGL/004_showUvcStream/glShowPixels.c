@@ -97,7 +97,7 @@ void init(void)
     init_pixels();
     load_bmp_data();
     glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-    int ret=uvc_camera_sdk_init("/dev/video2",TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT,uvc_camera_sdk_stream_yuyv);
+    int ret=uvc_camera_sdk_init("/dev/video0",TEST_PIXEL_WIDTH,TEST_PIXEL_HEIGHT,0);
 	uvc_camera_sdk_stream_start(1000212);
     return;
 }

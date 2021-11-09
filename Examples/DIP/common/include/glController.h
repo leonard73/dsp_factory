@@ -14,6 +14,16 @@ namespace _GL_CTL_
         uint32_t size_perPixel;
     }gl_class_parameter_imageInfo;
 
+    typedef struct uvc_camera_parameter_t
+    {
+        uint32_t dev_video_id;
+        uint32_t width;
+        uint32_t height;
+        uint32_t default_fps;
+        uint32_t format_mode;
+        uint32_t default_timeout;
+    }uvc_camera_parameter;
+
     typedef struct gl_class_parameter_t
     {
         gl_class_parameter_imageInfo imageElems[MAX_IMAGE_NB_PER_WINDOW]; 
@@ -23,6 +33,7 @@ namespace _GL_CTL_
         int      argc;
         char **  argv;
         const char * windowName;
+        uvc_camera_parameter uvc_parameter;
     }gl_class_parameter;
     enum gl_ctl_mode_t
     {
